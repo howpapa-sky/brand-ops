@@ -3,6 +3,14 @@
     {
       "path": "/api/sync/coupang",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/sync/naver",
+      "schedule": "15 */4 * * *"
+    },
+    {
+      "path": "/api/sync/cafe24",
+      "schedule": "30 */4 * * *"
     }
   ]
 }
