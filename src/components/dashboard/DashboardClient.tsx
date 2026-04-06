@@ -6,6 +6,7 @@ import { ChannelBarChart } from './ChannelBarChart'
 import { DailyTrendChart } from './DailyTrendChart'
 import { RecentOrders } from './RecentOrders'
 import { AlertsList } from './AlertsList'
+import { SyncPanel } from './SyncPanel'
 import { useBrand } from '@/hooks/useBrand'
 import { formatKRW, formatNumber } from '@/lib/format'
 import { TrendingUp, ShoppingCart, Megaphone, Target } from 'lucide-react'
@@ -83,12 +84,15 @@ export function DashboardClient() {
         <DailyTrendChart data={trendData} />
       </div>
 
-      {/* 주문 + 알림 */}
+      {/* 주문 + 알림 + 동기화 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <RecentOrders orders={filteredOrders} />
         </div>
-        <AlertsList alerts={alerts} />
+        <div className="space-y-4">
+          <SyncPanel />
+          <AlertsList alerts={alerts} />
+        </div>
       </div>
     </div>
   )
