@@ -1,0 +1,286 @@
+// prisma/schema.prisma
+// 하우파파/누씨오 브랜드 통합 운영 시스템
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          String    @default("admin")
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  syncLogs      SyncLog[]
+  samples       Sample[]
+}
+
+model Brand {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  name          String
+  displayName   String
+  color         String
+  logoUrl       String?
+  createdAt     DateTime  @default(now())
+  skus          Sku[]
+  orders        Order[]
+  adSpends      AdSpend[]
+  samples       Sample[]
+  buyers        Buyer[]
+  taxRecords    TaxRecord[]
+}
+
+model Sku {
+  id            String    @id @default(cuid())
+  brandId       String
+  skuCode       String    @unique
+  productName   String
+  category      String?
+  barcode       String?
+  costPrice     Int       @default(0)
+  sellingPrice  Int       @default(0)
+  weight        Int?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  brand           Brand             @relation(fields: [brandId], references: [id])
+  costHistory     SkuCostHistory[]
+  channelMappings ChannelMapping[]
+  inventories     Inventory[]
+  orderItems      OrderItem[]
+  samples         Sample[]
+}
+
+model SkuCostHistory {
+  id            String    @id @default(cuid())
+  skuId         String
+  previousCost  Int
+  newCost       Int
+  changeReason  String?
+  effectiveDate DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  sku           Sku       @relation(fields: [skuId], references: [id])
+}
+
+model ChannelMapping {
+  id              String    @id @default(cuid())
+  skuId           String
+  channel         String
+  optionName      String
+  channelProductId String?
+  channelSkuId    String?
+  createdAt       DateTime  @default(now())
+  sku             Sku       @relation(fields: [skuId], references: [id])
+  @@unique([skuId, channel, optionName])
+}
+
+model Inventory {
+  id            String    @id @default(cuid())
+  skuId         String
+  warehouse     String    @default("default")
+  quantity      Int       @default(0)
+  lotNumber     String?
+  expiryDate    DateTime?
+  receivedDate  DateTime?
+  receivedQty   Int?
+  updatedAt     DateTime  @updatedAt
+  sku           Sku       @relation(fields: [skuId], references: [id])
+}
+
+model InventoryLog {
+  id            String    @id @default(cuid())
+  skuId         String
+  type          String
+  quantity      Int
+  reason        String?
+  referenceId   String?
+  createdAt     DateTime  @default(now())
+}
+
+model Order {
+  id              String    @id @default(cuid())
+  brandId         String
+  channel         String
+  channelOrderId  String
+  orderDate       DateTime
+  status          String
+  buyerName       String?
+  buyerPhone      String?
+  totalAmount     Int       @default(0)
+  shippingFee     Int       @default(0)
+  channelFee      Int       @default(0)
+  netAmount       Int       @default(0)
+  rawData         Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  brand           Brand       @relation(fields: [brandId], references: [id])
+  items           OrderItem[]
+  @@unique([channel, channelOrderId])
+}
+
+model OrderItem {
+  id            String    @id @default(cuid())
+  orderId       String
+  skuId         String?
+  productName   String
+  optionName    String?
+  quantity      Int       @default(1)
+  unitPrice     Int       @default(0)
+  totalPrice    Int       @default(0)
+  costPrice     Int       @default(0)
+  profit        Int       @default(0)
+  order         Order     @relation(fields: [orderId], references: [id])
+  sku           Sku?      @relation(fields: [skuId], references: [id])
+}
+
+model ChannelSetting {
+  id            String    @id @default(cuid())
+  channel       String    @unique
+  channelName   String
+  feeRate       Float     @default(0)
+  shippingFee   Int       @default(0)
+  isActive      Boolean   @default(true)
+  lastSyncAt    DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+model AdSpend {
+  id            String    @id @default(cuid())
+  brandId       String
+  date          DateTime  @db.Date
+  platform      String
+  spend         Int       @default(0)
+  impressions   Int       @default(0)
+  clicks        Int       @default(0)
+  conversions   Int       @default(0)
+  revenue       Int       @default(0)
+  roas          Float?
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  @@unique([brandId, date, platform])
+}
+
+model Sample {
+  id            String    @id @default(cuid())
+  brandId       String
+  skuId         String
+  purpose       String
+  recipientType String
+  recipientName String
+  recipientContact String?
+  quantity      Int       @default(1)
+  status        String    @default("pending")
+  trackingNumber String?
+  trackingCompany String?
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  feedbackNote  String?
+  feedbackUrl   String?
+  cost          Int       @default(0)
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  sku           Sku       @relation(fields: [skuId], references: [id])
+  creator       User      @relation(fields: [createdBy], references: [id])
+}
+
+model TaxRecord {
+  id            String    @id @default(cuid())
+  brandId       String
+  type          String
+  category      String
+  description   String
+  date          DateTime  @db.Date
+  supplyAmount  Int       @default(0)
+  vatAmount     Int       @default(0)
+  totalAmount   Int       @default(0)
+  counterparty  String?
+  invoiceNumber String?
+  isAutoGenerated Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  brand         Brand     @relation(fields: [brandId], references: [id])
+}
+
+model Buyer {
+  id            String    @id @default(cuid())
+  brandId       String
+  name          String
+  company       String?
+  country       String
+  channel       String?
+  email         String?
+  phone         String?
+  notes         String?
+  lastContactAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  interactions  BuyerInteraction[]
+}
+
+model BuyerInteraction {
+  id            String    @id @default(cuid())
+  buyerId       String
+  type          String
+  summary       String
+  date          DateTime  @default(now())
+  buyer         Buyer     @relation(fields: [buyerId], references: [id])
+}
+
+model ApiCredential {
+  id            String    @id @default(cuid())
+  channel       String
+  brandCode     String
+  credentials   Json
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime?
+  lastSyncAt    DateTime?
+  syncStatus    String    @default("idle")
+  updatedAt     DateTime  @updatedAt
+  @@unique([channel, brandCode])
+}
+
+model SyncLog {
+  id              String    @id @default(cuid())
+  channel         String
+  syncType        String
+  status          String
+  recordsFetched  Int       @default(0)
+  recordsCreated  Int       @default(0)
+  recordsUpdated  Int       @default(0)
+  errorMessage    String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  triggeredBy     String?
+  user            User?     @relation(fields: [triggeredBy], references: [id])
+}
+
+model Alert {
+  id            String    @id @default(cuid())
+  type          String
+  severity      String
+  title         String
+  message       String
+  isRead        Boolean   @default(false)
+  relatedEntity String?
+  createdAt     DateTime  @default(now())
+}
+
+model ProfitSetting {
+  id            String    @id @default(cuid())
+  brandCode     String    @unique
+  vatEnabled    Boolean   @default(true)
+  vatRate       Float     @default(10.0)
+  fixedCosts    Json      @default("[]")
+  variableCosts Json      @default("[]")
+  updatedAt     DateTime  @updatedAt
+}
