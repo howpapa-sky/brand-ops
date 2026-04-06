@@ -15,7 +15,7 @@ export function getCafe24AuthUrl(
   state: string
 ): string {
   const scope = 'mall.read_order,mall.read_product,mall.read_salesreport'
-  return `https://${mallId}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${clientId}&state=${state}&redirect_uri=${redirectUri}&scope=${scope}`
+  return `https://${mallId}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${clientId}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`
 }
 
 interface Cafe24TokenResponse {
