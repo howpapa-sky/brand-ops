@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
 
 export const metadata: Metadata = {
   title: 'brand-ops | 브랜드 통합 운영',
@@ -33,6 +34,7 @@ export default function RootLayout({
             <main className="flex-1 pb-20 md:pb-6">{children}</main>
           </div>
           <MobileNav />
+          <Toaster position="top-right" />
         </TooltipProvider>
       </body>
     </html>

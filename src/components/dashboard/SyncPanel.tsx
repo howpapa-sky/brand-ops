@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Check, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatDate } from '@/lib/format'
 
 interface SyncLog {
@@ -30,7 +31,10 @@ export function SyncPanel() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [results, setResults] = useState<Record<string, { success: boolean; message: string }>>({})
   const [logs, setLogs] = useState<SyncLog[]>([])
-  const [logsLoaded, setLogsLoaded] = useState(false)
+
+  useEffect(() => {
+    loadLogs()
+  }, [])
 
   const handleSync = async (channel: string) => {
     setSyncing((prev) => ({ ...prev, [channel]: true }))
@@ -44,26 +48,30 @@ export function SyncPanel() {
       })
 
       const data = await res.json()
+      const label = CHANNELS.find((c) => c.key === channel)?.label ?? channel
 
       if (data.success) {
+        const msg = `${label} 주문 ${data.fetched}건 조회 → ${data.created}건 신규, ${data.updated}건 업데이트`
         setResults((prev) => ({
           ...prev,
-          [channel]: {
-            success: true,
-            message: `${data.fetched}건 조회 → ${data.created}건 신규, ${data.updated}건 업데이트`,
-          },
+          [channel]: { success: true, message: msg },
         }))
+        toast.success(msg)
       } else {
+        const msg = data.error ?? '동기화 실패'
         setResults((prev) => ({
           ...prev,
-          [channel]: { success: false, message: data.error ?? '동기화 실패' },
+          [channel]: { success: false, message: msg },
         }))
+        toast.error(`${label} 동기화 실패: ${msg}`)
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : '네트워크 오류'
       setResults((prev) => ({
         ...prev,
-        [channel]: { success: false, message: e instanceof Error ? e.message : '네트워크 오류' },
+        [channel]: { success: false, message: msg },
       }))
+      toast.error(`동기화 오류: ${msg}`)
     } finally {
       setSyncing((prev) => ({ ...prev, [channel]: false }))
       loadLogs()
@@ -75,7 +83,6 @@ export function SyncPanel() {
       const res = await fetch('/api/sync/status')
       const data = await res.json()
       setLogs(data.logs ?? [])
-      setLogsLoaded(true)
     } catch {
       // ignore
     }
@@ -93,19 +100,19 @@ export function SyncPanel() {
             className="text-xs"
           >
             <RefreshCw className="h-3 w-3 mr-1" />
-            로그
+            새로고침
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {CHANNELS.map((ch) => (
           <div key={ch.key} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={`text-xs ${ch.color}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge variant="outline" className={`text-xs shrink-0 ${ch.color}`}>
                 {ch.label}
               </Badge>
               {results[ch.key] && (
-                <span className={`text-xs ${results[ch.key].success ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-xs truncate ${results[ch.key].success ? 'text-green-600' : 'text-red-600'}`}>
                   {results[ch.key].success ? <Check className="inline h-3 w-3" /> : <X className="inline h-3 w-3" />}
                   {' '}{results[ch.key].message}
                 </span>
@@ -116,6 +123,7 @@ export function SyncPanel() {
               variant="outline"
               disabled={syncing[ch.key]}
               onClick={() => handleSync(ch.key)}
+              className="shrink-0 ml-2"
             >
               {syncing[ch.key] ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -127,7 +135,7 @@ export function SyncPanel() {
         ))}
 
         {/* 최근 동기화 로그 */}
-        {logsLoaded && logs.length > 0 && (
+        {logs.length > 0 && (
           <div className="mt-4 border-t pt-3">
             <p className="text-xs font-medium text-muted-foreground mb-2">최근 로그</p>
             <div className="space-y-1">
