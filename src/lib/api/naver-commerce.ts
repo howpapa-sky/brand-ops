@@ -20,14 +20,20 @@ async function getNaverToken(
   clientId: string,
   clientSecret: string
 ): Promise<{ token: string }> {
-  const res = await fetch(`${NCP_PROXY_URL}/naver/token`, {
-    method: 'POST',
-    headers: {
-      'x-api-key': getNcpApiKey(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ clientId, clientSecret }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${NCP_PROXY_URL}/naver/token`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': getNcpApiKey(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ clientId, clientSecret }),
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    throw new Error(`NCP 프록시 연결 실패 (${NCP_PROXY_URL}): ${msg}`)
+  }
 
   if (!res.ok) {
     const text = await res.text()

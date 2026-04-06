@@ -15,7 +15,7 @@ export function getCafe24AuthUrl(
   state: string
 ): string {
   const scope = 'mall.read_order,mall.read_product,mall.read_salesreport'
-  return `https://${mallId}.cafe24api.com/api/v2/oauth/authorize?response_type=code&client_id=${clientId}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`
+  return `https://${mallId}.cafe24.com/api/v2/oauth/authorize?response_type=code&client_id=${clientId}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`
 }
 
 interface Cafe24TokenResponse {
@@ -40,7 +40,7 @@ export async function exchangeCafe24Token(
 ): Promise<Cafe24TokenResponse> {
   const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
-  const res = await fetch(`https://${mallId}.cafe24api.com/api/v2/oauth/token`, {
+  const res = await fetch(`https://${mallId}.cafe24.com/api/v2/oauth/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${basicAuth}`,
@@ -65,7 +65,7 @@ export async function refreshCafe24Token(
 ): Promise<Cafe24TokenResponse> {
   const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
-  const res = await fetch(`https://${mallId}.cafe24api.com/api/v2/oauth/token`, {
+  const res = await fetch(`https://${mallId}.cafe24.com/api/v2/oauth/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${basicAuth}`,
@@ -104,17 +104,24 @@ export async function getCafe24AccessToken(
     expires_at: string
   }
 
-  // 만료 확인 (5분 여유)
+  // 만료 확인 (10분 여유)
   const expiresAt = new Date(creds.expires_at)
   const now = new Date()
-  now.setMinutes(now.getMinutes() + 5)
+  now.setMinutes(now.getMinutes() + 10)
 
-  if (now < expiresAt) {
+  if (now < expiresAt && creds.access_token) {
     return creds.access_token
   }
 
   // 토큰 갱신
-  const newToken = await refreshCafe24Token(mallId, clientId, clientSecret, creds.refresh_token)
+  let newToken: Cafe24TokenResponse
+  try {
+    newToken = await refreshCafe24Token(mallId, clientId, clientSecret, creds.refresh_token)
+  } catch {
+    throw new Error(
+      `카페24 ${brandCode} 토큰 갱신 실패. /api/auth/cafe24?brand=${brandCode} 로 재인증하세요.`
+    )
+  }
 
   await prisma.apiCredential.update({
     where: { channel_brandCode: { channel: 'cafe24', brandCode } },
@@ -189,19 +196,17 @@ export async function fetchCafe24Orders(
       embed: 'items',
     })
 
-    const res = await fetch(
-      `https://${mallId}.cafe24api.com/api/v2/admin/orders?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
+    const apiUrl = `https://${mallId}.cafe24api.com/api/v2/admin/orders?${params}`
+    const res = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
 
     if (!res.ok) {
       const text = await res.text()
-      throw new Error(`카페24 주문 조회 실패 ${res.status}: ${text}`)
+      throw new Error(`카페24 주문 조회 실패 ${res.status}: ${text.slice(0, 200)}`)
     }
 
     const json = (await res.json()) as Cafe24OrdersResponse
